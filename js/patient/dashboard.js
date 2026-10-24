@@ -82,23 +82,40 @@ function getInitials(fullName) {
 
 /* ---------- Dashboard Statistics ---------- */
 
-function initializeDashboardStatistics() {
-    /*
-     * These values are illustrative only.
-     * They are not connected to a medical database.
-     */
+async function initializeDashboardStatistics() {
+    // These statistics remain demo values until their APIs exist.
+    updateStatistic("reportsCount", 4);
+    updateStatistic("medicationsCount", 2);
+    updateStatistic("appointmentsCount", 1);
 
-    const demoStatistics = {
-        records: 8,
-        reports: 4,
-        medications: 2,
-        appointments: 1
-    };
+    // Fetch the patient count from the backend.
+    try {
+        const response = await fetch(
+            "http://localhost:3000/api/patients/count"
+        );
 
-    updateStatistic("recordsCount", demoStatistics.records);
-    updateStatistic("reportsCount", demoStatistics.reports);
-    updateStatistic("medicationsCount", demoStatistics.medications);
-    updateStatistic("appointmentsCount", demoStatistics.appointments);
+        if (!response.ok) {
+            throw new Error("Unable to fetch patient count.");
+        }
+
+        const data = await response.json();
+
+        if (
+            data.success !== true ||
+            !Number.isInteger(data.totalPatients) ||
+            data.totalPatients < 0
+        ) {
+            throw new Error("Invalid patient count response.");
+        }
+
+        updateStatistic("recordsCount", data.totalPatients);
+
+    } catch (error) {
+        console.error("Dashboard records count failed:", error);
+
+        // Do not display a fake database count when the API fails.
+        updateStatistic("recordsCount", "Unavailable");
+    }
 }
 
 function updateStatistic(elementId, value) {

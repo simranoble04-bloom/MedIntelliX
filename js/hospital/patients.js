@@ -2,128 +2,57 @@
 document.addEventListener("DOMContentLoaded", function () {
     "use strict";
 
-    const patients = [
-        {
-            id: "MIX-P1001",
-            name: "Aarav Sharma",
-            initials: "AS",
-            email: "aarav.sharma@example.com",
-            phone: "+91 90000 10001",
-            age: 28,
-            gender: "Male",
-            enrolledOn: "2026-08-12",
-            lastVisit: "2026-10-14",
-            status: "active",
-            bloodGroup: "O+",
-            city: "New Delhi",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1002",
-            name: "Ananya Verma",
-            initials: "AV",
-            email: "ananya.verma@example.com",
-            phone: "+91 90000 10002",
-            age: 35,
-            gender: "Female",
-            enrolledOn: "2026-08-18",
-            lastVisit: "2026-10-10",
-            status: "active",
-            bloodGroup: "A+",
-            city: "Noida",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1003",
-            name: "Rohan Mehta",
-            initials: "RM",
-            email: "rohan.mehta@example.com",
-            phone: "+91 90000 10003",
-            age: 42,
-            gender: "Male",
-            enrolledOn: "2026-09-02",
-            lastVisit: "2026-10-08",
-            status: "pending",
-            bloodGroup: "B+",
-            city: "Gurugram",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1004",
-            name: "Isha Kapoor",
-            initials: "IK",
-            email: "isha.kapoor@example.com",
-            phone: "+91 90000 10004",
-            age: 24,
-            gender: "Female",
-            enrolledOn: "2026-09-07",
-            lastVisit: "2026-10-12",
-            status: "active",
-            bloodGroup: "AB+",
-            city: "New Delhi",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1005",
-            name: "Kabir Malhotra",
-            initials: "KM",
-            email: "kabir.malhotra@example.com",
-            phone: "+91 90000 10005",
-            age: 51,
-            gender: "Male",
-            enrolledOn: "2026-09-15",
-            lastVisit: "2026-09-28",
-            status: "inactive",
-            bloodGroup: "O-",
-            city: "Faridabad",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1006",
-            name: "Meera Iyer",
-            initials: "MI",
-            email: "meera.iyer@example.com",
-            phone: "+91 90000 10006",
-            age: 31,
-            gender: "Female",
-            enrolledOn: "2026-09-21",
-            lastVisit: "2026-10-16",
-            status: "active",
-            bloodGroup: "A-",
-            city: "New Delhi",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1007",
-            name: "Dev Patel",
-            initials: "DP",
-            email: "dev.patel@example.com",
-            phone: "+91 90000 10007",
-            age: 39,
-            gender: "Male",
-            enrolledOn: "2026-10-03",
-            lastVisit: "Not recorded",
-            status: "pending",
-            bloodGroup: "Not recorded",
-            city: "Ghaziabad",
-            emergencyContact: "Demo contact — not provided"
-        },
-        {
-            id: "MIX-P1008",
-            name: "Sana Khan",
-            initials: "SK",
-            email: "sana.khan@example.com",
-            phone: "+91 90000 10008",
-            age: 27,
-            gender: "Female",
-            enrolledOn: "2026-10-05",
-            lastVisit: "2026-10-17",
-            status: "active",
-            bloodGroup: "B-",
-            city: "Noida",
-            emergencyContact: "Demo contact — not provided"
+    let patients = [];
+
+    async function loadPatientsFromAPI() {
+        try {
+            const response = await fetch(
+                "http://localhost:3000/api/hospital/patients"
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to load hospital patients.");
+            }
+
+            const data = await response.json();
+
+            if (
+                data.success !== true ||
+                !Array.isArray(data.patients)
+            ) {
+                throw new Error("Invalid patient API response.");
+            }
+
+            patients = data.patients.map((patient) => ({
+                ...patient,
+                initials: (patient.name || "Unknown")
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase(),
+                email: "Not provided",
+                phone: "Not provided",
+                gender: "Not recorded",
+                lastVisit: "Not recorded",
+                status: "active",
+                bloodGroup: "Not recorded",
+                city: "Not recorded",
+                emergencyContact: "Not provided"
+            }));
+
+            renderSummary();
+            renderPatients();
+
+        } catch (error) {
+            console.error("Hospital patients API error:", error);
+
+            patients = [];
+            renderSummary();
+            renderPatients();
         }
-    ];
+    }
 
     const tableBody = document.getElementById("patientTableBody");
     const searchInput = document.getElementById("patientSearch");
@@ -400,6 +329,5 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    renderSummary();
-    renderPatients();
+    loadPatientsFromAPI();
 });

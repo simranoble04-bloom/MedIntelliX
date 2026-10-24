@@ -1,121 +1,65 @@
-
 document.addEventListener("DOMContentLoaded", function () {
     "use strict";
 
-    const consultations = [
-        {
-            id: "CON-2001",
-            patient: "Aarav Sharma",
-            patientId: "MIX-P1001",
-            initials: "AS",
-            doctor: "Dr. Priya Nair",
-            date: "2026-10-20",
-            time: "09:30",
-            type: "General medicine",
-            status: "scheduled",
-            duration: "20 minutes",
-            department: "General Medicine",
-            notes: "Routine follow-up — fictional demo entry."
-        },
-        {
-            id: "CON-2002",
-            patient: "Ananya Verma",
-            patientId: "MIX-P1002",
-            initials: "AV",
-            doctor: "Dr. Rahul Khanna",
-            date: "2026-10-20",
-            time: "10:00",
-            type: "Cardiology",
-            status: "in-progress",
-            duration: "30 minutes",
-            department: "Cardiology",
-            notes: "Example consultation entry. No clinical information recorded."
-        },
-        {
-            id: "CON-2003",
-            patient: "Rohan Mehta",
-            patientId: "MIX-P1003",
-            initials: "RM",
-            doctor: "Dr. Meera Joshi",
-            date: "2026-10-20",
-            time: "10:45",
-            type: "General medicine",
-            status: "completed",
-            duration: "20 minutes",
-            department: "General Medicine",
-            notes: "Demo session marked complete."
-        },
-        {
-            id: "CON-2004",
-            patient: "Isha Kapoor",
-            patientId: "MIX-P1004",
-            initials: "IK",
-            doctor: "Dr. Priya Nair",
-            date: "2026-10-20",
-            time: "11:15",
-            type: "Dermatology",
-            status: "scheduled",
-            duration: "25 minutes",
-            department: "Dermatology",
-            notes: "Fictional appointment entry."
-        },
-        {
-            id: "CON-2005",
-            patient: "Kabir Malhotra",
-            patientId: "MIX-P1005",
-            initials: "KM",
-            doctor: "Dr. Rahul Khanna",
-            date: "2026-10-19",
-            time: "14:00",
-            type: "Cardiology",
-            status: "cancelled",
-            duration: "30 minutes",
-            department: "Cardiology",
-            notes: "Demo appointment cancelled."
-        },
-        {
-            id: "CON-2006",
-            patient: "Meera Iyer",
-            patientId: "MIX-P1006",
-            initials: "MI",
-            doctor: "Dr. Meera Joshi",
-            date: "2026-10-19",
-            time: "15:30",
-            type: "General medicine",
-            status: "completed",
-            duration: "20 minutes",
-            department: "General Medicine",
-            notes: "Demo session marked complete."
-        },
-        {
-            id: "CON-2007",
-            patient: "Dev Patel",
-            patientId: "MIX-P1007",
-            initials: "DP",
-            doctor: "Dr. Priya Nair",
-            date: "2026-10-18",
-            time: "09:00",
-            type: "Preventive care",
-            status: "no-show",
-            duration: "20 minutes",
-            department: "Preventive Care",
-            notes: "Demo appointment marked as no-show."
-        },
-        {
-            id: "CON-2008",
-            patient: "Sana Khan",
-            patientId: "MIX-P1008",
-            initials: "SK",
-            doctor: "Dr. Meera Joshi",
-            date: "2026-10-21",
-            time: "12:00",
-            type: "Dermatology",
-            status: "scheduled",
-            duration: "25 minutes",
-            department: "Dermatology",
-            notes: "Upcoming fictional consultation."
+    let consultations = [];
+    async function loadConsultationsFromAPI() {
+        try {
+            const response = await fetch(
+                "http://localhost:3000/api/hospital/consultations"
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to load consultations.");
+            }
+
+            const data = await response.json();
+
+            if (
+                data.success !== true ||
+                !Array.isArray(data.consultations)
+            ) {
+                throw new Error("Invalid consultations API response.");
+            }
+
+            consultations = data.consultations.map((item) => ({
+                id: item.consultation_code,
+                patient: item.full_name,
+                patientId: item.patient_code,
+                initials: (item.full_name || "Unknown")
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase(),
+                doctor: item.doctor_name,
+                date: String(item.consultation_date).slice(0, 10),
+                time: String(item.consultation_time).slice(0, 5),
+                type: item.consultation_type,
+                status: item.status,
+                duration: `${item.duration_minutes} minutes`,
+                department: item.department,
+                notes: item.notes
+            }));
+
+            updateSummary();
+            renderConsultations();
+
+        } catch (error) {
+            console.error("Consultations API error:", error);
+
+            consultations = [];
+            updateSummary();
+            renderConsultations();
+
+            if (typeof window.showPortalNotice === "function") {
+                window.showPortalNotice(
+                    "Unable to load consultations. Check that the backend is running.",
+                    "error"
+                );
+            }
         }
-    ];
+    }
 
     const tableBody = document.getElementById("consultationTableBody");
     const searchInput = document.getElementById("consultationSearch");
@@ -419,7 +363,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    saveStatusButton.addEventListener("click", function () {
+    saveStatusButton.addEventListener("click", async function () {
         const item = consultations.find(function (entry) {
             return entry.id === selectedConsultationId;
         });
@@ -428,29 +372,73 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        item.status = newStatusSelect.value;
+        const newStatus = newStatusSelect.value;
+        const previousStatus = item.status;
 
-        updateSummary();
-        renderConsultations();
+        saveStatusButton.disabled = true;
 
-        // Refresh the open modal's status badge.
-        const statusBadge = detailsBody.querySelector(".consultation-status");
-
-        if (statusBadge) {
-            statusBadge.className =
-                `consultation-status ${escapeHTML(item.status)}`;
-            statusBadge.textContent = statusLabel(item.status);
-        }
-
-        // Inform the user that the change is only local.
-        if (typeof window.showPortalNotice === "function") {
-            window.showPortalNotice(
-                "Demo consultation status updated in this page only. The change is not saved to a server.",
-                "info"
+        try {
+            const response = await fetch(
+                `http://localhost:3000/api/hospital/consultations/${encodeURIComponent(item.id)}/status`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        status: newStatus
+                    })
+                }
             );
+
+            const result = await response.json();
+
+            if (!response.ok || result.success !== true) {
+                throw new Error(
+                    result.message || "Unable to save consultation status."
+                );
+            }
+
+            item.status = result.consultation.status;
+
+            updateSummary();
+            renderConsultations();
+
+            const statusBadge =
+                detailsBody.querySelector(".consultation-status");
+
+            if (statusBadge) {
+                statusBadge.className =
+                    `consultation-status ${escapeHTML(item.status)}`;
+                statusBadge.textContent = statusLabel(item.status);
+            }
+
+            if (typeof window.showPortalNotice === "function") {
+                window.showPortalNotice(
+                    "Consultation status saved successfully.",
+                    "success"
+                );
+            }
+
+        } catch (error) {
+            console.error("Consultation status update failed:", error);
+
+            item.status = previousStatus;
+            newStatusSelect.value = previousStatus;
+
+            if (typeof window.showPortalNotice === "function") {
+                window.showPortalNotice(
+                    error.message || "Unable to save consultation status.",
+                    "error"
+                );
+            } else {
+                alert(error.message || "Unable to save consultation status.");
+            }
+
+        } finally {
+            saveStatusButton.disabled = false;
         }
     });
 
-    updateSummary();
-    renderConsultations();
+    loadConsultationsFromAPI();
 });

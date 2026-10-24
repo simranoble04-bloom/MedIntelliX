@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", function () {
     "use strict";
 
     const form = document.getElementById("registerPatientForm");
+    const firstName = document.getElementById("firstName");
+    const lastName = document.getElementById("lastName");
     const successPanel = document.getElementById("registrationSuccess");
     const referenceElement = document.getElementById("demoReference");
     const dateOfBirth = document.getElementById("dateOfBirth");
@@ -157,7 +159,7 @@ document.addEventListener("DOMContentLoaded", function () {
     registrationDate.addEventListener("change", validateRegistrationDate);
     genderSelect.addEventListener("change", updateGenderDescription);
 
-    form.addEventListener("submit", function (event) {
+    form.addEventListener("submit", async function (event) {
         event.preventDefault();
 
         form.dataset.submitted = "true";
@@ -185,17 +187,71 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // This reference is for the UI demonstration only.
-        // No form data is sent to a server or stored in a database.
-        const demoReference = "MIX-DEMO-" + Date.now().toString().slice(-8);
+        // Send the validated patient details to the backend.
+        const submitButton = form.querySelector('[type="submit"]');
+        const originalButtonText = submitButton
+            ? submitButton.textContent
+            : "";
 
-        referenceElement.textContent = demoReference;
-        successPanel.classList.remove("d-none");
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = "Registering...";
+        }
 
-        successPanel.scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
+        try {
+            const fullName =
+                `${firstName.value.trim()} ${lastName.value.trim()}`.trim();
+
+            // Generate a candidate code. The database checks for duplicates.
+            const patientCode =
+                "MIX-" + Date.now().toString(36).toUpperCase();
+
+            const response = await fetch(
+                "http://localhost:3000/api/hospital/patients",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        patientCode,
+                        fullName,
+                        dateOfBirth: dateOfBirth.value
+                    })
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || result.success !== true) {
+                throw new Error(
+                    result.message || "Patient registration failed."
+                );
+            }
+
+            referenceElement.textContent = result.patient.id;
+            successPanel.classList.remove("d-none");
+
+            successPanel.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+
+        } catch (error) {
+            console.error("Patient registration error:", error);
+
+            alert(
+                error.message === "Failed to fetch"
+                    ? "Cannot connect to the backend. Make sure your server is running."
+                    : error.message || "Unable to register patient. Please try again."
+            );
+
+        } finally {
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
+        }
     });
 
     form.addEventListener("reset", function () {
